@@ -6,6 +6,7 @@ using NLog.Targets;
 using System;
 using System.IO;
 using System.Runtime.Loader;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace Relier.Microservices
@@ -24,6 +25,12 @@ namespace Relier.Microservices
 
         /// <summary>Executation interval between each service iteration.</summary>
         private int _executionInterval = 1000;
+
+        /// <summary>Begin of execution period.</summary>
+        private string _executionPeriodStart = null;
+
+        /// <summary>End of execution period.</summary>
+        private string _executionPeriodEnd = null;
 
         /// <summary>Basic constructor.</summary>
         public MicroserviceBase()
@@ -53,6 +60,7 @@ namespace Relier.Microservices
             var section = config.GetSection("Relier.Microservice");
             if (section.Exists())
             {
+                // Verify if have to log Debug.
                 if (section.GetValue<bool>("Debug"))
                 {
                     FileTarget debugFileTarget = new FileTarget();
@@ -71,6 +79,26 @@ namespace Relier.Microservices
 
             NLog.LogManager.Configuration = logConfig;
             this.Logger = loggerFactory.CreateLogger<MicroserviceBase>();
+
+            if (section.Exists())
+            {
+                // Verify if this service have any specific execution period.
+                // Example: 00:00-06:00.
+                string executionPeriod = section.GetValue<string>("ExecutionPeriod");
+                if (!string.IsNullOrEmpty(executionPeriod))
+                {
+                    var regEx = new Regex("^(?:0?[0-9]|1[0-9]|2[0-3]):[0-5][0-9]-(?:0?[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$");
+                    if (!regEx.IsMatch(executionPeriod))
+                    {
+                        string errorMessage = "Invalid time format for ExecutionPeriod parameter. The value " + executionPeriod + " is invalid. The correct pattern is HH:MM-HH:MM."; 
+                        this.Logger.LogError(errorMessage);
+                        Environment.FailFast(errorMessage);
+                    }
+
+                    _executionPeriodStart = executionPeriod.Split('-')[0];
+                    _executionPeriodEnd = executionPeriod.Split('-')[1];
+                }
+            }
         }
 
         /// <summary>Start the execution of this microservice.</summary>
@@ -88,7 +116,10 @@ namespace Relier.Microservices
             
             while(!_stopCommand)
             {
-                Execute();
+                if (IsExecutionPeriod())
+                {
+                    Execute();
+                }
                 Thread.Sleep(_executionInterval);
             }
 
@@ -124,6 +155,22 @@ namespace Relier.Microservices
                 return "Production";
 
             return env;
+        }
+
+        /// <summary>Verify if the current time is between the execution period.</summary>
+        private bool IsExecutionPeriod()
+        {
+            if (string.IsNullOrEmpty(_executionPeriodStart) || string.IsNullOrEmpty(_executionPeriodEnd))
+                return true;
+
+            TimeSpan start = TimeSpan.Parse(_executionPeriodStart);
+            TimeSpan end = TimeSpan.Parse(_executionPeriodEnd);
+            TimeSpan now = DateTime.Now.TimeOfDay;
+
+            if (start <= end)
+                return now >= start && now <= end;
+            else
+                return now >= start || now <= end;
         }
     }
 }
