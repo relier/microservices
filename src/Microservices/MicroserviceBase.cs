@@ -24,7 +24,13 @@ namespace Relier.Microservices
         private bool _stopConfirmation = false;
 
         /// <summary>Executation interval between each service iteration.</summary>
-        private int _executionInterval = 1000;
+        private int _tickInterval = 1000;
+
+        /// <summary>Execution interval used to the time beetween each service execution.</summary>
+        private int _executionInterval;
+
+        /// <summary>Time when the execute method was called for the last time.</summary>
+        private long _lastExecutionTime = 0;
 
         /// <summary>Begin of execution period.</summary>
         private string _executionPeriodStart = null;
@@ -105,7 +111,11 @@ namespace Relier.Microservices
         /// <param name="executionInterval">Execution interval between each microservice iteration.</param>
         public void KeepRunning(int executionInterval)
         {
+            _tickInterval = executionInterval;
             _executionInterval = executionInterval;
+            if (executionInterval > 60000 * 10)
+                _tickInterval = 60000;
+
             StartEvent();
         }
 
@@ -117,10 +127,13 @@ namespace Relier.Microservices
             while(!_stopCommand)
             {
                 if (IsExecutionPeriod())
-                {
-                    Execute();
-                }
-                Thread.Sleep(_executionInterval);
+                    if (TimeSpan.FromTicks(DateTime.Now.Ticks - _lastExecutionTime).TotalSeconds * 1000 > _executionInterval)
+                    {
+                        Execute();
+                        _lastExecutionTime = DateTime.Now.Ticks;
+                    }
+
+                Thread.Sleep(_tickInterval);
             }
 
             _stopConfirmation = true;
