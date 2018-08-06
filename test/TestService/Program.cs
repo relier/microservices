@@ -7,7 +7,7 @@ namespace Relier.Microservices.Tests.TestService
         static void Main(string[] args)
         {
             var service = new Service();
-            service.KeepRunning(50);
+            service.KeepRunning(5000);
         }
     }
 }
