@@ -17,6 +17,15 @@ namespace Relier.Microservices
         /// <summary>Instance of logger object.</summary>
         protected ILogger Logger { get; private set; }
 
+        /// <summary>Environment identified by the environment variable ASPNETCORE_ENVIRONMENT.</summary>
+        protected string Environment
+        { 
+            get
+            {
+                return GetEnvironmentConfigFileSuffix();
+            }
+        }
+
         /// <summary>Control flag to stop this microservice.</summary>
         private bool _stopCommand = false;
 
@@ -59,6 +68,7 @@ namespace Relier.Microservices
             string envConfigPath = fileName + "." + env + file.Extension;
             
             var builder = new ConfigurationBuilder()
+                .SetBasePath(System.Environment.CurrentDirectory)
                 .AddJsonFile(configPath, true)
                 .AddJsonFile(envConfigPath, true);
 
@@ -98,7 +108,7 @@ namespace Relier.Microservices
                     {
                         string errorMessage = "Invalid time format for ExecutionPeriod parameter. The value " + executionPeriod + " is invalid. The correct pattern is HH:MM-HH:MM."; 
                         this.Logger.LogError(errorMessage);
-                        Environment.FailFast(errorMessage);
+                        System.Environment.FailFast(errorMessage);
                     }
 
                     _executionPeriodStart = executionPeriod.Split('-')[0];
@@ -163,7 +173,7 @@ namespace Relier.Microservices
         /// <returns>File suffix.</returns>
         private string GetEnvironmentConfigFileSuffix()
         {
-            string env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            string env = System.Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
             if (string.IsNullOrEmpty(env))
                 return "Production";
 
