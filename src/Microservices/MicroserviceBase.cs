@@ -58,7 +58,9 @@ namespace Relier.Microservices
             loggerFactory.AddNLog();
             LoggingConfiguration logConfig = new LoggingConfiguration();
 
-            string instanceId = System.Environment.MachineName.Substring(0, 12);
+            string instanceId = System.Environment.MachineName;
+            if(instanceId.Length > 12)
+                instanceId = instanceId.Substring(0, 12);
             
             // Read appsettings.json configuration file.
             string configPath = "appsettings.json";
